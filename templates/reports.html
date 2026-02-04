@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}报告中心 - 家庭能源管理系统{% endblock %}
+{% block page_title %}能源报告{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:600px; margin:0 auto;">
+    <div style="text-align:center; padding:30px;">
+        <i class="fas fa-file-invoice-dollar" style="font-size:4em; color:#3498db; margin-bottom:20px;"></i>
+        <h2>月度能源诊断报告</h2>
+        <p style="color:#7f8c8d;">生成包含您使用趋势、成本分析和AI驱动的节能建议的综合PDF报告。</p>
+
+        <div style="margin:30px 0; text-align:left; background:#f4f6f9; padding:20px; border-radius:8px;">
+            <label>选择月份</label>
+            <select style="width:100%; padding:10px; margin-top:5px; border-radius:5px; border:1px solid #ddd;">
+                <option>2025年12月</option>
+                <option>2025年11月</option>
+                <option>2025年10月</option>
+            </select>
+
+            <br><br>
+            <label><input type="checkbox" checked> 包含异常详情</label> <br>
+            <label><input type="checkbox" checked> 包含账单估算</label>
+        </div>
+
+        <button class="btn-primary"
+            onclick="alert('PDF生成将在此处进行（需要ReportLab后端集成）。')"
+            style="width:100%; font-size:1.1em;">
+            <i class="fas fa-download"></i> 下载报告 (PDF)
+        </button>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,1579 @@
+{% extends "base.html" %}
+
+{% block title %}仪表盘 - 家庭能源管理系统{% endblock %}
+
+{% block page_title %}实时能源监控{% endblock %}
+
+{% block content %}
+<!-- 首先引入ECharts库-->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+
+<!-- 警报区域 -->
+<div id="alert-area" class="alert-box alert-danger" style="display: none;"></div>
+
+<!-- 主要指标 -->
+<div class="metrics-row">
+    <div class="metric-card">
+        <div class="metric-label">当前总功率</div>
+        <div id="val-power" class="metric-value">-- W</div>
+        <div class="metric-subtext" id="power-trend">--</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">今日累计用电</div>
+        <div id="val-today" class="metric-value" style="color: #27ae60;">-- kWh</div>
+        <div class="metric-subtext" id="today-change">--</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">本月累计用电</div>
+        <div id="val-month" class="metric-value" style="color: #9b59b6;">-- kWh</div>
+        <div class="metric-subtext" id="month-change">--</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">下一步预测</div>
+        <div id="val-pred" class="metric-value" style="color: #3498db;">-- W</div>
+        <div class="metric-subtext" id="pred-trend">置信度: --</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">模拟操作</div>
+        <button id="step-button" onclick="fetchStep()" class="btn-primary" style="width: 100%; margin-top: 5px;">
+            向前一步 &raquo;
+        </button>
+        <button onclick="clearData()" class="btn-secondary" style="width: 100%; margin-top: 5px;">
+            清空数据
+        </button>
+        <div id="loading-indicator" style="display: none; font-size: 0.8rem; color: #7f8c8d; text-align: center; margin-top: 5px;">
+            <i class="fas fa-spinner fa-spin"></i> 处理中...
+        </div>
+        <!-- 新增：设备更新频率控制 -->
+        <div style="margin-top: 10px; font-size: 0.8rem;">
+            <label for="update-frequency">更新频率:</label>
+            <select id="update-frequency" onchange="changeUpdateFrequency()" style="width: 100%; margin-top: 3px; padding: 3px;">
+                <option value="30000">30秒</option>
+                <option value="60000" selected>1分钟</option>
+                <option value="120000">2分钟</option>
+                <option value="300000">5分钟</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- 实时监测行 -->
+<div class="metrics-row">
+    <div class="card" style="flex: 1;">
+        <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <i class="fas fa-plug"></i> 电器实时功率监测
+        </h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <span style="color: #7f8c8d; font-size: 14px;">各电器当前运行功率</span>
+            <span style="font-size: 0.8rem; color: #3498db;" id="device-update-time">--:--</span>
+        </div>
+        <div id="device-power-chart" style="height: 200px;"></div>
+        <div style="margin-top: 10px; overflow-x: auto;">
+            <table style="width:100%; font-size:13px; min-width: 500px;">
+                <thead>
+                    <tr style="background:#f8f9fa;">
+                        <th style="padding:8px; text-align:left;">设备</th>
+                        <th style="padding:8px; text-align:right;">功率</th>
+                        <th style="padding:8px; text-align:right;">状态</th>
+                        <th style="padding:8px; text-align:right;">今日用量</th>
+                    </tr>
+                </thead>
+                <tbody id="device-table-body">
+                    <!-- 设备数据将通过JS动态填充 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="flex: 1;">
+        <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <i class="fas fa-bolt"></i> 功率实时仪表
+        </h3>
+        <div style="text-align: center; padding: 10px 20px;">
+            <!-- 修复：将仪表容器高度增加，避免文字重叠 -->
+            <div id="power-gauge" style="height: 200px; position: relative;"></div>
+            <!-- 添加独立的当前功率显示，避免遮挡指针 -->
+            <div id="current-power-display" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 5px;">
+                <span style="color: #7f8c8d; font-size: 14px;">当前功率: </span>
+                <span id="gauge-power-value" style="font-weight: bold; color: #e74c3c; font-size: 16px;">-- W</span>
+            </div>
+            <div style="margin-top: 10px;">
+                <span style="color: #7f8c8d; font-size: 14px;">安全阈值: </span>
+                <span style="font-weight: bold; color: #e74c3c;" id="safety-threshold">5000W</span>
+            </div>
+        </div>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 15px;">
+            <h4 style="margin-top: 0; color: #2c3e50;">用电建议</h4>
+            <div id="energy-tips">
+                <p style="margin: 5px 0; font-size: 13px;">
+                    <i class="fas fa-lightbulb" style="color: #f1c40f;"></i>
+                    建议在峰电时段减少大功率电器使用
+                </p>
+                <p style="margin: 5px 0; font-size: 13px;">
+                    <i class="fas fa-snowflake" style="color: #3498db;"></i>
+                    空调温度设定在26°C最节能
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 历史能耗对比 -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin-top:0; color:#2c3e50;">
+            <i class="fas fa-chart-bar"></i> 能耗历史分析
+        </h3>
+        <div>
+            <select id="history-period" onchange="updateHistoryChart()" style="padding: 5px 10px; border-radius: 4px; border: 1px solid #ddd;">
+                <option value="day">日视图</option>
+                <option value="week">周视图</option>
+                <option value="month">月视图</option>
+                <option value="year">年视图</option>
+            </select>
+            <select id="compare-mode" onchange="updateHistoryChart()" style="padding: 5px 10px; border-radius: 4px; border: 1px solid #ddd; margin-left: 10px;">
+                <option value="single">单日分析</option>
+                <option value="compare">对比分析</option>
+                <option value="trend">趋势分析</option>
+            </select>
+        </div>
+    </div>
+    <div id="history-chart" style="height: 300px;"></div>
+    <div style="display: flex; justify-content: space-between; margin-top: 15px; font-size: 13px;">
+        <div>
+            <span style="color: #7f8c8d;">今日峰值: </span>
+            <span id="peak-today" style="font-weight: bold;">--</span>
+        </div>
+        <div>
+            <span style="color: #7f8c8d;">平均能耗: </span>
+            <span id="avg-daily" style="font-weight: bold;">-- kWh</span>
+        </div>
+        <div>
+            <span style="color: #7f8c8d;" id="cost-label">本月电费: </span>
+            <span id="period-cost" style="font-weight: bold; color: #e74c3c;">-- 元</span>
+        </div>
+    </div>
+</div>
+
+<!-- 预测与异常检测 -->
+<div class="card">
+    <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #eee; padding-bottom:10px;">
+        <i class="fas fa-chart-line"></i> AI预测与异常检测
+    </h3>
+    <div id="mainChart" style="height: 350px;"></div>
+</div>
+
+<!-- AI分析与对比 -->
+<div class="metrics-row">
+    <div class="card" style="flex: 1;">
+        <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <i class="fas fa-search-plus"></i> 可解释AI分析（SHAP）
+        </h3>
+        <!-- 添加SHAP加载状态 -->
+        <div id="shap-loading" style="display: none; text-align: center; padding: 20px;">
+            <i class="fas fa-spinner fa-spin fa-2x" style="color: #3498db;"></i>
+            <p style="margin-top: 10px; color: #7f8c8d;">SHAP分析计算中...</p>
+        </div>
+        <div id="shapChart" style="height: 280px;"></div>
+    </div>
+
+    <div class="card" style="flex: 1;">
+        <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <i class="fas fa-balance-scale"></i> 同期对比分析
+        </h3>
+        <div id="compare-chart" style="height: 280px;"></div>
+        <div style="margin-top: 15px; font-size: 13px;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>昨日同期</span>
+                <span id="compare-yesterday">--</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                <span>上周同期</span>
+                <span id="compare-lastweek">--</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                <span>上月同期</span>
+                <span id="compare-lastmonth">--</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 初始化所有图表
+let mainChart, shapChart, deviceChart, historyChart, compareChart, powerGauge;
+
+// 初始化图表函数
+function initCharts() {
+    if (!window.echarts) {
+        console.error('ECharts未加载，请检查CDN引入');
+        return false;
+    }
+
+    try {
+        mainChart = echarts.init(document.getElementById('mainChart'));
+        shapChart = echarts.init(document.getElementById('shapChart'));
+        deviceChart = echarts.init(document.getElementById('device-power-chart'));
+        historyChart = echarts.init(document.getElementById('history-chart'));
+        compareChart = echarts.init(document.getElementById('compare-chart'));
+        powerGauge = echarts.init(document.getElementById('power-gauge'));
+        console.log('所有图表初始化成功');
+        return true;
+    } catch (error) {
+        console.error('图表初始化失败:', error);
+        return false;
+    }
+}
+
+// 特征名称中英文映射
+const featureNameMap = {
+    'aggregate': '总功率',
+    'temperature': '温度',
+    'holiday': '节假日',
+    'lag_1': '1小时前功率',
+    'lag_2': '2小时前功率',
+    'lag_24': '24小时前功率',
+    'rolling_mean_6H': '6小时平均功率',
+    'rolling_mean_24H': '24小时平均功率',
+    'rolling_std_6H': '6小时功率波动',
+    'rolling_std_24H': '24小时功率波动',
+    'hour_sin': '小时位置',
+    'hour_cos': '小时周期',
+    'day_sin': '星期位置',
+    'day_cos': '星期周期',
+    'month_sin': '月份位置',
+    'month_cos': '月份周期'
+};
+
+// 设备信息
+const deviceInfo = {
+    '空调': { id: 'ac', basePower: 1500, color: '#e67e22', icon: 'fa-snowflake' },
+    '冰箱': { id: 'fridge', basePower: 200, color: '#3498db', icon: 'fa-refrigerator' },
+    '洗衣机': { id: 'washer', basePower: 800, color: '#9b59b6', icon: 'fa-soap' },
+    '电视': { id: 'tv', basePower: 150, color: '#1abc9c', icon: 'fa-tv' },
+    '照明': { id: 'light', basePower: 300, color: '#f1c40f', icon: 'fa-lightbulb' },
+    '电热水器': { id: 'heater', basePower: 2000, color: '#e74c3c', icon: 'fa-fire' },
+    '电脑': { id: 'pc', basePower: 300, color: '#34495e', icon: 'fa-desktop' },
+    '厨房电器': { id: 'kitchen', basePower: 600, color: '#d35400', icon: 'fa-utensils' }
+};
+
+// 数据缓冲区
+let timeLabels = [];
+let actualData = [];
+let predData = [];
+let ciLow = [];
+let ciHigh = [];
+let stepCount = 0;
+let isProcessing = false;
+
+// 历史数据存储
+let deviceHistory = {};
+let energyHistory = {
+    daily: [],
+    weekly: [],
+    monthly: [],
+    yearly: []
+};
+
+// 累计用电量（修复：基于历史数据，不会重置）
+let todayTotalKWh = 0;
+let monthTotalKWh = 0;
+
+// 设备更新定时器
+let deviceUpdateInterval = null;
+let currentUpdateFrequency = 60000; // 默认1分钟（60000毫秒）
+
+// 安全获取DOM元素的函数
+function getElementSafely(id) {
+    const element = document.getElementById(id);
+    if (!element) {
+        console.warn(`元素 #${id} 不存在`);
+    }
+    return element;
+}
+
+// 安全设置元素文本
+function setElementTextSafely(id, text) {
+    const element = getElementSafely(id);
+    if (element) {
+        element.innerText = text;
+    }
+}
+
+// 安全设置元素HTML
+function setElementHTMLSafely(id, html) {
+    const element = getElementSafely(id);
+    if (element) {
+        element.innerHTML = html;
+    }
+}
+
+// 改变设备更新频率
+function changeUpdateFrequency() {
+    const frequencySelect = getElementSafely('update-frequency');
+    if (!frequencySelect) return;
+
+    currentUpdateFrequency = parseInt(frequencySelect.value);
+
+    // 清除现有定时器
+    if (deviceUpdateInterval) {
+        clearInterval(deviceUpdateInterval);
+    }
+
+    // 设置新的定时器
+    if (currentUpdateFrequency > 0) {
+        deviceUpdateInterval = setInterval(updateDeviceChart, currentUpdateFrequency);
+        console.log(`设备更新频率已调整为: ${currentUpdateFrequency/1000}秒`);
+    }
+}
+
+// 初始化设备历史数据
+Object.keys(deviceInfo).forEach(device => {
+    deviceHistory[device] = [];
+});
+
+// 保存数据到本地存储
+function saveDataToStorage() {
+    try {
+        const dataToSave = {
+            timeLabels: timeLabels,
+            actualData: actualData,
+            predData: predData,
+            ciLow: ciLow,
+            ciHigh: ciHigh,
+            stepCount: stepCount,
+            deviceHistory: deviceHistory,
+            energyHistory: energyHistory,
+            todayTotalKWh: todayTotalKWh,
+            monthTotalKWh: monthTotalKWh,
+            lastUpdate: new Date().toISOString()
+        };
+        localStorage.setItem('shems_dashboard_data', JSON.stringify(dataToSave));
+    } catch (error) {
+        console.error('保存数据到本地存储失败:', error);
+    }
+}
+
+// 从本地存储加载数据
+function loadDataFromStorage() {
+    try {
+        const savedData = localStorage.getItem('shems_dashboard_data');
+        if (savedData) {
+            const parsedData = JSON.parse(savedData);
+            const lastUpdate = new Date(parsedData.lastUpdate);
+            const now = new Date();
+            const hoursDiff = (now - lastUpdate) / (1000 * 60 * 60);
+
+            // 只加载24小时内的图表数据，但累计用电量永久保留
+            timeLabels = parsedData.timeLabels || [];
+            actualData = parsedData.actualData || [];
+            predData = parsedData.predData || [];
+            ciLow = parsedData.ciLow || [];
+            ciHigh = parsedData.ciHigh || [];
+            stepCount = parsedData.stepCount || 0;
+            deviceHistory = parsedData.deviceHistory || {};
+            energyHistory = parsedData.energyHistory || { daily: [], weekly: [], monthly: [], yearly: [] };
+
+            // 重新初始化设备历史（如果没有）
+            Object.keys(deviceInfo).forEach(device => {
+                if (!deviceHistory[device]) {
+                    deviceHistory[device] = [];
+                }
+            });
+
+            // 但保留累计用电量
+            todayTotalKWh = parseFloat(localStorage.getItem('todayTotalKWh') || 0);
+            monthTotalKWh = parseFloat(localStorage.getItem('monthTotalKWh') || 0);
+
+            console.log(`从本地存储加载了 ${stepCount} 步数据`);
+            return true;
+        }
+    } catch (error) {
+        console.error('从本地存储加载数据失败:', error);
+    }
+    return false;
+}
+
+// 清空数据
+function clearData() {
+    if (confirm('确定要清空所有数据吗？这将重置所有图表，但累计用电量会保留。')) {
+        timeLabels = [];
+        actualData = [];
+        predData = [];
+        ciLow = [];
+        ciHigh = [];
+        stepCount = 0;
+        deviceHistory = {};
+        energyHistory = { daily: [], weekly: [], monthly: [], yearly: [] };
+
+        Object.keys(deviceInfo).forEach(device => {
+            deviceHistory[device] = [];
+        });
+
+        // 不清除累计用电量
+        setElementTextSafely('val-power', '-- W');
+        setElementTextSafely('val-pred', '-- W');
+
+        updateAllCharts();
+        alert('图表数据已清空，累计用电量已保留');
+    }
+}
+
+// 响应式调整大小
+let resizeTimer;
+window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        if (mainChart) mainChart.resize();
+        if (shapChart) shapChart.resize();
+        if (deviceChart) deviceChart.resize();
+        if (historyChart) historyChart.resize();
+        if (compareChart) compareChart.resize();
+        if (powerGauge) powerGauge.resize();
+    }, 150);
+});
+
+// 更新设备监测图表 - 优化：减少波动幅度
+function updateDeviceChart() {
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2, '0') + ':' +
+                   now.getMinutes().toString().padStart(2, '0');
+    setElementTextSafely('device-update-time', timeStr);
+
+    // 模拟设备实时功率
+    const deviceData = [];
+    let totalPower = 0;
+    const deviceTableBody = getElementSafely('device-table-body');
+
+    if (deviceTableBody) {
+        deviceTableBody.innerHTML = '';
+    }
+
+    // 计算今天的起始时间（用于计算今日用电量）
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    Object.keys(deviceInfo).forEach((device, index) => {
+        // 优化：降低功率波动频率和幅度
+        const basePower = deviceInfo[device].basePower;
+        const timeFactor = now.getTime() / (1000 * 60 * 60); // 小时为单位
+        const deviceFactor = index * 0.5;
+
+        // 更平滑的波动
+        const variation = 0.9 + 0.1 * Math.sin(timeFactor * 0.05 + deviceFactor);
+        const currentPower = Math.round(basePower * variation);
+
+        // 设备开关状态（模拟真实使用模式）
+        const hour = now.getHours();
+        let isOn = true;
+
+        // 根据设备类型和时间模拟开关状态
+        switch(device) {
+            case '空调':
+                isOn = (hour >= 8 && hour <= 22); // 白天开启
+                break;
+            case '照明':
+                isOn = (hour >= 18 || hour <= 6); // 夜间开启
+                break;
+            case '电视':
+                isOn = (hour >= 18 && hour <= 23); // 晚上开启
+                break;
+            case '冰箱':
+                isOn = true; // 冰箱常开
+                break;
+            default:
+                isOn = Math.random() > 0.3; // 70%概率开启
+        }
+
+        // 计算今日用量（基于历史数据）
+        const todayUsageKey = `device_${device}_today_usage`;
+        let todayUsage = parseFloat(localStorage.getItem(todayUsageKey) || 0);
+
+        if (isOn) {
+            // 增加今日用电量（基于更新频率）
+            const increment = (currentPower * currentUpdateFrequency / 1000) / 3600000; // 转换为kWh
+            todayUsage += increment;
+            localStorage.setItem(todayUsageKey, todayUsage);
+
+            deviceData.push({
+                name: device,
+                value: currentPower,
+                itemStyle: { color: deviceInfo[device].color }
+            });
+            totalPower += currentPower;
+        }
+
+        // 更新设备表格
+        if (deviceTableBody) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="padding:6px;">
+                    <i class="fas ${deviceInfo[device].icon}" style="color: ${deviceInfo[device].color}; margin-right: 5px;"></i>
+                    ${device}
+                </td>
+                <td style="padding:6px; text-align:right; font-weight:bold;">${isOn ? currentPower + 'W' : '--'}</td>
+                <td style="padding:6px; text-align:right;">
+                    <span style="padding:2px 6px; border-radius:3px; font-size:11px; background: ${isOn ? '#2ecc71' : '#95a5a6'}; color:white;">
+                        ${isOn ? '运行中' : '关闭'}
+                    </span>
+                </td>
+                <td style="padding:6px; text-align:right;">${todayUsage.toFixed(2)} kWh</td>
+            `;
+            deviceTableBody.appendChild(row);
+        }
+
+        // 记录设备历史数据（只记录最近2小时）
+        if (deviceHistory[device]) {
+            deviceHistory[device].push({
+                time: now,
+                power: isOn ? currentPower : 0,
+                usage: todayUsage
+            });
+
+            // 保持最近720条记录
+            if (deviceHistory[device].length > 720) {
+                deviceHistory[device].shift();
+            }
+        }
+    });
+
+    // 更新总功率显示
+    setElementTextSafely('val-power', totalPower + ' W');
+
+    // 更新独立显示的当前功率
+    setElementTextSafely('gauge-power-value', totalPower + ' W');
+
+    // 功率趋势（与上次更新比较）
+    const lastPowerKey = 'last_total_power';
+    const lastPower = parseFloat(localStorage.getItem(lastPowerKey) || totalPower);
+    const trend = totalPower - lastPower;
+    const trendText = trend > 100 ? '↗ 上升' : (trend < -100 ? '↘ 下降' : '→ 平稳');
+    const trendColor = trend > 100 ? '#e74c3c' : (trend < -100 ? '#27ae60' : '#7f8c8d');
+    setElementHTMLSafely('power-trend', `<span style="color:${trendColor}">${trendText}</span>`);
+
+    // 保存当前功率
+    localStorage.setItem(lastPowerKey, totalPower);
+
+    // 更新累计用电量（基于设备运行状态）
+    const lastUpdateTimeKey = 'last_device_update_time';
+    const lastUpdateTime = parseFloat(localStorage.getItem(lastUpdateTimeKey) || now.getTime());
+    const timeDiffHours = (now.getTime() - lastUpdateTime) / (1000 * 60 * 60);
+
+    if (timeDiffHours > 0) {
+        // 增加累计用电量（基于总功率和运行时间）
+        const increment = (totalPower * timeDiffHours) / 1000; // 转换为kWh
+        todayTotalKWh += increment;
+        monthTotalKWh += increment;
+
+        // 确保不会减少
+        const savedTodayKWh = parseFloat(localStorage.getItem('todayTotalKWh') || 0);
+        const savedMonthKWh = parseFloat(localStorage.getItem('monthTotalKWh') || 0);
+
+        if (todayTotalKWh < savedTodayKWh) todayTotalKWh = savedTodayKWh;
+        if (monthTotalKWh < savedMonthKWh) monthTotalKWh = savedMonthKWh;
+
+        // 保存到本地存储
+        localStorage.setItem('todayTotalKWh', todayTotalKWh);
+        localStorage.setItem('monthTotalKWh', monthTotalKWh);
+        localStorage.setItem(lastUpdateTimeKey, now.getTime());
+    }
+
+    // 更新显示
+    setElementTextSafely('val-today', todayTotalKWh.toFixed(1) + ' kWh');
+    setElementTextSafely('val-month', monthTotalKWh.toFixed(1) + ' kWh');
+
+    // 更新变化指示
+    const todayChange = (todayTotalKWh - parseFloat(localStorage.getItem('yesterdayTotalKWh') || 0)).toFixed(1);
+    setElementTextSafely('today-change', `较昨日: ${todayChange > 0 ? '+' : ''}${todayChange}kWh`);
+
+    // 更新功率仪表
+    updatePowerGauge(totalPower);
+
+    // 更新设备图表
+    if (deviceData.length > 0 && deviceChart) {
+        deviceChart.setOption({
+            tooltip: {
+                trigger: 'item',
+                formatter: '{b}: {c}W ({d}%)'
+            },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                avoidLabelOverlap: false,
+                label: {
+                    show: true,
+                    position: 'outside',
+                    formatter: '{b}\n{c}W'
+                },
+                data: deviceData,
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }]
+        }, true);
+    }
+}
+
+// 更新功率仪表 - 修复：调整文字位置避免遮挡指针
+function updatePowerGauge(currentPower) {
+    if (!powerGauge) return;
+
+    const maxPower = 5000;
+    const percentage = Math.min((currentPower / maxPower) * 100, 100);
+
+    let color;
+    if (percentage < 50) color = '#27ae60';
+    else if (percentage < 80) color = '#f1c40f';
+    else color = '#e74c3c';
+
+    powerGauge.setOption({
+        series: [{
+            type: 'gauge',
+            center: ['50%', '60%'],
+            radius: '90%',
+            min: 0,
+            max: maxPower,
+            splitNumber: 10,
+            axisLine: {
+                lineStyle: {
+                    width: 10,
+                    color: [
+                        [0.3, '#27ae60'],
+                        [0.7, '#f1c40f'],
+                        [1, '#e74c3c']
+                    ]
+                }
+            },
+            pointer: {
+                itemStyle: {
+                    color: 'auto',
+                    borderWidth: 0
+                },
+                length: '75%',
+                width: 5
+            },
+            axisTick: {
+                distance: -12,
+                length: 8,
+                lineStyle: {
+                    color: '#fff',
+                    width: 1
+                }
+            },
+            splitLine: {
+                distance: -15,
+                length: 15,
+                lineStyle: {
+                    color: '#fff',
+                    width: 2
+                }
+            },
+            axisLabel: {
+                color: '#666',
+                distance: 20,
+                fontSize: 10
+            },
+            // 修复：移除仪表内部的文字显示，避免遮挡
+            detail: {
+                show: false
+            },
+            title: {
+                show: false
+            },
+            data: [{
+                value: currentPower
+            }]
+        }]
+    }, true);
+}
+
+// 更新历史能耗图表
+function updateHistoryChart() {
+    if (!historyChart) return;
+
+    const period = getElementSafely('history-period')?.value || 'day';
+    const compareMode = getElementSafely('compare-mode')?.value || 'single';
+
+    let xData = [], seriesData = [], compareData = [];
+
+    // 根据选择的时间段生成数据
+    switch(period) {
+        case 'day':
+            xData = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'];
+            seriesData = [1.2, 0.8, 2.5, 3.2, 2.8, 4.5, 1.8];
+            compareData = [1.0, 0.7, 2.2, 3.0, 2.5, 4.2, 1.5];
+            break;
+        case 'week':
+            xData = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+            seriesData = [25, 28, 26, 30, 32, 40, 35];
+            compareData = [22, 25, 24, 28, 30, 38, 32];
+            break;
+        case 'month':
+            xData = [];
+            seriesData = [];
+            compareData = [];
+            for (let i = 1; i <= 30; i++) {
+                xData.push(i + '日');
+                const base = 25 + i * 0.5 + Math.random() * 5;
+                seriesData.push(parseFloat(base.toFixed(1)));
+                compareData.push(parseFloat((base * 0.9).toFixed(1)));
+            }
+            break;
+        case 'year':
+            xData = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+            seriesData = [850, 1630, 2350, 3000, 3600, 4350, 5300, 6280, 7100, 7800, 8550, 9400];
+            compareData = [800, 1550, 2250, 2870, 3450, 4170, 5070, 5990, 6770, 7450, 8170, 8990];
+            break;
+    }
+
+    // 计算统计信息
+    const maxVal = Math.max(...seriesData);
+    const avgVal = (seriesData[seriesData.length - 1] - seriesData[0]) / (seriesData.length - 1);
+
+    // 根据时间段计算总能耗和电费
+    const electricityPrice = 0.6;
+    let totalEnergy, cost, avgText, costLabel;
+
+    switch(period) {
+        case 'day':
+            totalEnergy = seriesData.reduce((a, b) => a + b, 0);
+            cost = (totalEnergy * electricityPrice).toFixed(2);
+            avgText = avgVal.toFixed(1) + 'kW';
+            costLabel = '今日电费: ';
+            break;
+        case 'week':
+            totalEnergy = seriesData.reduce((a, b) => a + b, 0);
+            cost = (totalEnergy * electricityPrice).toFixed(2);
+            avgText = avgVal.toFixed(1) + 'kWh';
+            costLabel = '本周电费: ';
+            break;
+        case 'month':
+            totalEnergy = seriesData.reduce((a, b) => a + b, 0);
+            cost = (totalEnergy * electricityPrice).toFixed(2);
+            avgText = avgVal.toFixed(1) + 'kWh';
+            costLabel = '本月电费: ';
+            break;
+        case 'year':
+            totalEnergy = seriesData.reduce((a, b) => a + b, 0);
+            cost = (totalEnergy * electricityPrice).toFixed(2);
+            avgText = avgVal.toFixed(0) + 'kWh';
+            costLabel = '今年电费: ';
+            break;
+    }
+
+    // 更新显示
+    setElementTextSafely('peak-today', maxVal.toFixed(1) + (period === 'day' ? 'kW' : 'kWh'));
+    setElementTextSafely('avg-daily', avgText);
+
+    // 更新电费标签和数值
+    const costLabelElement = getElementSafely('cost-label');
+    if (costLabelElement) {
+        costLabelElement.innerText = costLabel;
+    }
+    setElementTextSafely('period-cost', cost + ' 元');
+
+    // 配置历史图表
+    const series = [{
+        name: '当前能耗',
+        type: 'line',
+        data: seriesData,
+        smooth: true,
+        lineStyle: {
+            width: 3,
+            color: '#3498db'
+        },
+        areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(52, 152, 219, 0.3)' },
+                { offset: 1, color: 'rgba(52, 152, 219, 0.05)' }
+            ])
+        }
+    }];
+
+    if (compareMode === 'compare') {
+        series.push({
+            name: '对比数据',
+            type: 'line',
+            data: compareData,
+            smooth: true,
+            lineStyle: {
+                width: 2,
+                type: 'dashed',
+                color: '#e74c3c'
+            }
+        });
+    }
+
+    // 根据不同的时间段调整X轴标签
+    let xAxisConfig = {
+        type: 'category',
+        data: xData,
+        boundaryGap: false,
+        axisLabel: {
+            fontSize: 11
+        }
+    };
+
+    // 如果数据点太多，旋转标签或间隔显示
+    if (xData.length > 20) {
+        xAxisConfig.axisLabel = {
+            rotate: 45,
+            fontSize: 10,
+            interval: Math.floor(xData.length / 10)
+        };
+    }
+
+    historyChart.setOption({
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow'
+            }
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: period === 'day' ? '15%' : (period === 'month' ? '20%' : '12%'),
+            top: '10%',
+            containLabel: true
+        },
+        xAxis: xAxisConfig,
+        yAxis: {
+            type: 'value',
+            name: period === 'day' ? '功率 (kW)' : '累计能耗 (kWh)'
+        },
+        legend: {
+            data: series.map(s => s.name),
+            bottom: 0
+        },
+        series: series
+    }, true);
+}
+
+// 更新同期对比图表
+function updateCompareChart() {
+    if (!compareChart) return;
+
+    // 模拟对比数据
+    const hours = [];
+    const todayData = [];
+    const yesterdayData = [];
+    const lastWeekData = [];
+
+    for (let i = 0; i < 24; i++) {
+        hours.push(i + ':00');
+        const base = 1.5 + Math.sin(i * Math.PI / 12) * 1.2;
+        todayData.push(base + Math.random() * 0.5);
+        yesterdayData.push(base * 0.9 + Math.random() * 0.5);
+        lastWeekData.push(base * 0.85 + Math.random() * 0.5);
+    }
+
+    // 计算对比值
+    const todayAvg = (todayData.reduce((a, b) => a + b, 0) / todayData.length).toFixed(1);
+    const yesterdayAvg = (yesterdayData.reduce((a, b) => a + b, 0) / yesterdayData.length).toFixed(1);
+    const lastWeekAvg = (lastWeekData.reduce((a, b) => a + b, 0) / lastWeekData.length).toFixed(1);
+    const lastMonthAvg = (todayAvg * 0.88).toFixed(1);
+
+    setElementTextSafely('compare-yesterday', yesterdayAvg + 'kW (' + ((yesterdayAvg/todayAvg-1)*100).toFixed(1) + '%)');
+    setElementTextSafely('compare-lastweek', lastWeekAvg + 'kW (' + ((lastWeekAvg/todayAvg-1)*100).toFixed(1) + '%)');
+    setElementTextSafely('compare-lastmonth', lastMonthAvg + 'kW (' + ((lastMonthAvg/todayAvg-1)*100).toFixed(1) + '%)');
+
+    compareChart.setOption({
+        tooltip: {
+            trigger: 'axis'
+        },
+        legend: {
+            data: ['今日', '昨日', '上周同期'],
+            bottom: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: hours,
+            boundaryGap: false
+        },
+        yAxis: {
+            type: 'value',
+            name: '功率 (kW)'
+        },
+        series: [
+            {
+                name: '今日',
+                type: 'line',
+                data: todayData,
+                smooth: true,
+                lineStyle: { width: 3, color: '#3498db' }
+            },
+            {
+                name: '昨日',
+                type: 'line',
+                data: yesterdayData,
+                smooth: true,
+                lineStyle: { width: 2, type: 'dashed', color: '#95a5a6' }
+            },
+            {
+                name: '上周同期',
+                type: 'line',
+                data: lastWeekData,
+                smooth: true,
+                lineStyle: { width: 2, type: 'dotted', color: '#9b59b6' }
+            }
+        ]
+    }, true);
+}
+
+// 更新主预测图表
+function updateMainChart() {
+    if (!mainChart) return;
+
+    mainChart.setOption({
+        tooltip: {
+            trigger: 'axis',
+            formatter: function(params) {
+                let result = params[0].name + '<br/>';
+                params.forEach(function(param) {
+                    result += param.seriesName + ': ' + param.value.toFixed(3);
+                    if (param.seriesName === '实际值') {
+                        result += ' (' + Math.round(param.value * 5000) + 'W)';
+                    }
+                    result += '<br/>';
+                });
+                return result;
+            }
+        },
+        legend: {
+            data: ['实际值', '预测值', '95%置信区间'],
+            bottom: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '10%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: timeLabels.length > 0 ? timeLabels : ['t+0'],
+            boundaryGap: false,
+            axisLabel: {
+                formatter: function(value) {
+                    if (timeLabels.length > 20) {
+                        const index = timeLabels.indexOf(value);
+                        return index % 5 === 0 ? value : '';
+                    }
+                    return value;
+                }
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: '功率（归一化）',
+            min: 0,
+            max: 1
+        },
+        series: [
+            {
+                name: '95%置信区间',
+                type: 'line',
+                data: ciHigh.length > 0 ? ciHigh : [0],
+                lineStyle: { opacity: 0 },
+                areaStyle: { color: '#3498db', opacity: 0.2 },
+                stack: 'confidence-band',
+                symbol: 'none'
+            },
+            {
+                name: '置信区间下限',
+                type: 'line',
+                data: ciLow.length > 0 ? ciLow : [0],
+                lineStyle: { opacity: 0 },
+                areaStyle: { color: '#fff', opacity: 1 },
+                stack: 'confidence-band',
+                symbol: 'none'
+            },
+            {
+                name: '预测值',
+                type: 'line',
+                data: predData.length > 0 ? predData : [0],
+                lineStyle: { color: '#3498db', width: 3 },
+                symbol: 'none'
+            },
+            {
+                name: '实际值',
+                type: 'line',
+                data: actualData.length > 0 ? actualData : [0],
+                lineStyle: { color: '#2c3e50', width: 2, type: 'dashed' },
+                itemStyle: { color: '#2c3e50' },
+                symbol: 'circle',
+                symbolSize: 6
+            }
+        ]
+    }, true);
+}
+
+// 修复：SHAP图表显示
+function updateShapChart(features, shapValues) {
+    if (!shapChart) return;
+
+    console.log('SHAP数据:', { features, shapValues });
+
+    // 隐藏加载状态
+    const shapLoading = getElementSafely('shap-loading');
+    if (shapLoading) {
+        shapLoading.style.display = 'none';
+    }
+
+    if (!features || !shapValues) {
+        showEmptyShapChart('暂无SHAP分析数据');
+        return;
+    }
+
+    // 确保features和shapValues是数组
+    if (!Array.isArray(features) || !Array.isArray(shapValues)) {
+        showEmptyShapChart('数据格式错误');
+        return;
+    }
+
+    // 处理特征名称转换
+    const chineseFeatures = features.map(feature => {
+        return featureNameMap[feature] ||
+               feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    });
+
+    // 处理SHAP值
+    let processedShapValues;
+
+    try {
+        if (shapValues.length === 0) {
+            showEmptyShapChart('SHAP值为空');
+            return;
+        }
+
+        if (Array.isArray(shapValues[0])) {
+            // 二维数组：取最后时间步的SHAP值
+            processedShapValues = shapValues[shapValues.length - 1];
+        } else if (shapValues.length === chineseFeatures.length) {
+            // 一维数组
+            processedShapValues = shapValues;
+        } else {
+            showEmptyShapChart('数据格式不匹配');
+            return;
+        }
+    } catch (error) {
+        console.error('处理SHAP值时出错:', error);
+        showEmptyShapChart('数据处理错误');
+        return;
+    }
+
+    // 创建特征重要性排序
+    const featureImportance = [];
+    for (let i = 0; i < chineseFeatures.length; i++) {
+        featureImportance.push({
+            name: chineseFeatures[i],
+            value: processedShapValues[i] || 0,
+            absValue: Math.abs(processedShapValues[i] || 0)
+        });
+    }
+
+    // 按绝对值排序
+    featureImportance.sort((a, b) => b.absValue - a.absValue);
+
+    // 取前10个最重要的特征
+    const topFeatures = featureImportance.slice(0, Math.min(10, featureImportance.length));
+    const displayFeatures = topFeatures.map(item => item.name);
+    const displayValues = topFeatures.map(item => item.value);
+
+    // 如果没有任何数据可显示
+    if (displayFeatures.length === 0) {
+        showEmptyShapChart('无有效特征数据');
+        return;
+    }
+
+    // 配置SHAP图表
+    shapChart.setOption({
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow'
+            },
+            formatter: function(params) {
+                const data = params[0];
+                const impact = data.value > 0 ? '提升预测' : '降低预测';
+                const color = data.value > 0 ? '#ff7675' : '#74b9ff';
+                const percent = ((Math.abs(data.value) / topFeatures.reduce((sum, item) => sum + Math.abs(item.value), 0)) * 100).toFixed(1);
+                return `<div>
+                    <strong>${data.name}</strong><br/>
+                    <span style="color:${color}; font-weight:bold">${impact}</span><br/>
+                    影响值: ${data.value.toFixed(4)}<br/>
+                    贡献度: ${percent}%
+                </div>`;
+            }
+        },
+        grid: {
+            left: '30%',
+            right: '5%',
+            bottom: '10%',
+            top: '10%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'value',
+            name: '对预测的影响',
+            axisLabel: {
+                formatter: function(value) {
+                    return value.toFixed(3);
+                }
+            }
+        },
+        yAxis: {
+            type: 'category',
+            data: displayFeatures,
+            axisLabel: {
+                fontSize: 11,
+                interval: 0
+            }
+        },
+        series: [{
+            name: '影响值',
+            type: 'bar',
+            data: displayValues,
+            label: {
+                show: true,
+                position: 'right',
+                formatter: function(params) {
+                    const val = params.value;
+                    const direction = val > 0 ? '↑' : '↓';
+                    return `${direction} ${Math.abs(val).toFixed(3)}`;
+                },
+                fontSize: 10
+            },
+            itemStyle: {
+                color: function(params) {
+                    return params.value > 0 ? '#ff7675' : '#74b9ff';
+                },
+                borderRadius: [0, 3, 3, 0]
+            },
+            emphasis: {
+                itemStyle: {
+                    shadowBlur: 10,
+                    shadowOffsetX: 0,
+                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                }
+            }
+        }]
+    }, true);
+}
+
+// 显示空的SHAP图表
+function showEmptyShapChart(message) {
+    if (!shapChart) return;
+
+    shapChart.setOption({
+        title: {
+            text: message || '等待数据...',
+            left: 'center',
+            top: 'center',
+            textStyle: {
+                color: '#999',
+                fontSize: 14,
+                fontWeight: 'normal'
+            }
+        },
+        xAxis: { show: false },
+        yAxis: { show: false },
+        series: []
+    }, true);
+}
+
+// 更新所有图表
+function updateAllCharts() {
+    if (!mainChart || !shapChart || !deviceChart || !historyChart || !compareChart || !powerGauge) {
+        console.log('图表未完全初始化，等待重试...');
+        setTimeout(updateAllCharts, 100);
+        return;
+    }
+
+    updateMainChart();
+    updateDeviceChart();
+    updateHistoryChart();
+    updateCompareChart();
+    updatePowerGauge(1500);
+    showEmptyShapChart('点击"向前一步"获取SHAP分析');
+}
+
+// 主要的fetchStep函数 - 优化：增加超时处理和重试机制
+async function fetchStep() {
+    if (isProcessing) {
+        alert('正在处理中，请稍候...');
+        return;
+    }
+
+    isProcessing = true;
+    const stepButton = getElementSafely('step-button');
+    const loadingIndicator = getElementSafely('loading-indicator');
+    const shapLoading = getElementSafely('shap-loading');
+
+    if (stepButton) {
+        stepButton.disabled = true;
+        stepButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中';
+    }
+
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+    }
+
+    if (shapLoading) {
+        shapLoading.style.display = 'block';
+    }
+
+    try {
+        // 设置请求超时和重试机制
+        const MAX_RETRIES = 2;
+        const TIMEOUT = 30000;
+        let lastError = null;
+
+        for (let retry = 0; retry <= MAX_RETRIES; retry++) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                }, TIMEOUT);
+
+                console.log(`尝试第 ${retry + 1} 次请求...`);
+
+                // 模拟API响应（实际使用时替换为真实的fetch调用）
+                // const response = await fetch('/api/simulation/step', {
+                //     method: 'POST',
+                //     headers: {
+                //         'Content-Type': 'application/json',
+                //         'X-Requested-With': 'XMLHttpRequest'
+                //     },
+                //     signal: controller.signal
+                // });
+
+                // clearTimeout(timeoutId);
+
+                // if (!response.ok) {
+                //     throw new Error(`HTTP ${response.status}`);
+                // }
+
+                // const data = await response.json();
+
+                // 模拟数据（用于测试）
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 模拟网络延迟
+                const mockData = {
+                    actual_power: 0.5 + Math.random() * 0.3,
+                    prediction: {
+                        forecast: 0.55 + Math.random() * 0.2,
+                        ci_low: 0.4 + Math.random() * 0.1,
+                        ci_high: 0.6 + Math.random() * 0.2,
+                        std: 0.05 + Math.random() * 0.03
+                    },
+                    alert: {
+                        is_anomaly: Math.random() > 0.8,
+                        alerts: Math.random() > 0.8 ? ['功率异常波动'] : []
+                    },
+                    explanation: {
+                        feature_names: ['aggregate', 'temperature', 'holiday', 'lag_1', 'lag_24'],
+                        shap_values: [
+                            0.12 + Math.random() * 0.05,
+                            -0.08 + Math.random() * 0.04,
+                            0.05 + Math.random() * 0.03,
+                            0.15 + Math.random() * 0.06,
+                            -0.10 + Math.random() * 0.05
+                        ]
+                    }
+                };
+
+                const data = mockData;
+
+                // 处理成功响应
+                stepCount++;
+                const nowLabel = 't+' + stepCount;
+
+                // 更新指标
+                const actualPower = data.actual_power;
+                const denormalizedPower = Math.round(actualPower * 5000);
+                setElementTextSafely('val-power', denormalizedPower + ' W');
+                setElementTextSafely('val-pred', Math.round(data.prediction.forecast * 5000) + ' W');
+
+                // 更新预测趋势
+                const confidence = Math.max(0, (1 - data.prediction.std * 2)).toFixed(2);
+                setElementTextSafely('pred-trend', `置信度: ${confidence}`);
+
+                // 警报逻辑
+                const alertBox = getElementSafely('alert-area');
+                if (alertBox) {
+                    if (data.alert && data.alert.is_anomaly) {
+                        alertBox.style.display = 'block';
+                        alertBox.innerText = "警告: " + (data.alert.alerts?.join(' | ') || '检测到异常');
+                    } else {
+                        alertBox.style.display = 'none';
+                    }
+                }
+
+                // 更新数据缓冲区
+                timeLabels.push(nowLabel);
+                actualData.push(actualPower);
+                predData.push(data.prediction.forecast);
+                ciLow.push(data.prediction.ci_low);
+                ciHigh.push(data.prediction.ci_high);
+
+                if (timeLabels.length > 30) {
+                    timeLabels.shift();
+                    actualData.shift();
+                    predData.shift();
+                    ciLow.shift();
+                    ciHigh.shift();
+                }
+
+                // 增加累计用电量
+                const hourlyUsage = actualPower * 0.5;
+                todayTotalKWh += hourlyUsage;
+                monthTotalKWh += hourlyUsage;
+
+                // 保存数据
+                saveDataToStorage();
+
+                // 更新图表
+                setTimeout(() => {
+                    updateMainChart();
+                    updateDeviceChart();
+
+                    // 更新SHAP图表
+                    if (data.explanation && data.explanation.feature_names && data.explanation.shap_values) {
+                        console.log('更新SHAP图表');
+                        updateShapChart(data.explanation.feature_names, data.explanation.shap_values);
+                    } else {
+                        console.log('没有SHAP解释数据');
+                        showEmptyShapChart('无AI解释数据');
+                    }
+                }, 100);
+
+                // 成功，跳出重试循环
+                break;
+
+            } catch (error) {
+                lastError = error;
+                console.error(`第 ${retry + 1} 次请求失败:`, error);
+
+                if (retry < MAX_RETRIES) {
+                    await new Promise(resolve => setTimeout(resolve, 2000 * (retry + 1)));
+                    continue;
+                }
+            }
+        }
+
+        if (lastError) {
+            throw lastError;
+        }
+
+    } catch (error) {
+        console.error('所有重试都失败:', error);
+
+        // 显示用户友好的错误信息
+        let errorMessage = '请求失败: ';
+        if (error.name === 'AbortError') {
+            errorMessage = '请求超时，请检查网络连接或稍后重试';
+        } else if (error.message.includes('HTTP')) {
+            errorMessage = `服务器错误: ${error.message}`;
+        } else if (error.message.includes('NetworkError')) {
+            errorMessage = '网络连接失败，请检查网络设置';
+        } else {
+            errorMessage += error.message;
+        }
+
+        alert(errorMessage);
+
+        // 恢复SHAP图表显示
+        showEmptyShapChart('请求失败，请重试');
+    } finally {
+        setTimeout(() => {
+            isProcessing = false;
+            if (stepButton) {
+                stepButton.disabled = false;
+                stepButton.innerHTML = '向前一步 &raquo;';
+            }
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'none';
+            }
+        }, 300);
+    }
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('页面加载完成，开始初始化...');
+
+    // 等待ECharts加载
+    if (!window.echarts) {
+        console.error('ECharts库未加载，将在1秒后重试...');
+        setTimeout(() => {
+            if (!window.echarts) {
+                alert('ECharts图表库加载失败，请刷新页面或检查网络连接');
+                return;
+            }
+            initPage();
+        }, 1000);
+    } else {
+        initPage();
+    }
+});
+
+function initPage() {
+    // 初始化图表
+    if (!initCharts()) {
+        alert('图表初始化失败，请刷新页面');
+        return;
+    }
+
+    // 尝试加载历史数据
+    loadDataFromStorage();
+
+    // 初始化所有图表
+    updateAllCharts();
+
+    // 设置设备更新定时器（默认1分钟）
+    deviceUpdateInterval = setInterval(updateDeviceChart, currentUpdateFrequency);
+
+    // 初始化对比图表
+    updateCompareChart();
+
+    // 设置默认更新频率
+    const frequencySelect = getElementSafely('update-frequency');
+    if (frequencySelect) {
+        frequencySelect.value = currentUpdateFrequency;
+    }
+
+    console.log('仪表盘初始化完成');
+}
+
+// 页面关闭前保存数据
+window.addEventListener('beforeunload', function() {
+    saveDataToStorage();
+});
+
+// 添加错误处理
+window.addEventListener('error', function(event) {
+    console.error('JavaScript错误:', event.error);
+});
+
+// 添加页面可见性变化处理（标签页切换时暂停更新）
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // 页面隐藏时清除定时器
+        if (deviceUpdateInterval) {
+            clearInterval(deviceUpdateInterval);
+            deviceUpdateInterval = null;
+        }
+    } else {
+        // 页面显示时重新启动定时器
+        if (!deviceUpdateInterval) {
+            deviceUpdateInterval = setInterval(updateDeviceChart, currentUpdateFrequency);
+        }
+    }
+});
+</script>
+
+<style>
+.metric-subtext {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    margin-top: 5px;
+}
+
+.btn-secondary {
+    background-color: #95a5a6;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-secondary:hover {
+    background-color: #7f8c8d;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th {
+    font-weight: 600;
+    color: #2c3e50;
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+}
+
+tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* 优化表格滚动 */
+.metrics-row .card {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 设备表格容器 */
+#device-table-body-container {
+    overflow-y: auto;
+    max-height: 200px;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+    .metrics-row {
+        flex-wrap: wrap;
+    }
+
+    .card {
+        min-width: 100%;
+        margin-bottom: 20px;
+    }
+}
+
+/* 加载动画 */
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 警报样式优化 */
+.alert-box {
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    animation: fadeIn 0.3s;
+}
+
+.alert-danger {
+    background-color: #ffebee;
+    color: #c62828;
+    border-left: 4px solid #c62828;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}

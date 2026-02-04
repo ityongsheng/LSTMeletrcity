@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}XAI实验室 - 家庭能源管理系统{% endblock %}
+{% block page_title %}可解释AI实验室{% endblock %}
+
+{% block content %}
+<div class="metrics-row">
+    <div class="card" style="flex:1;">
+        <h3>模型性能对比</h3>
+        <p style="color:#7f8c8d;">在UK-DALE数据集上评估不同架构的性能。</p>
+
+        <table style="width:100%; text-align:center; border-collapse:collapse; margin-top:15px;">
+            <tr style="background:#ecf0f1;">
+                <th>模型</th>
+                <th>RMSE</th>
+                <th>MAE</th>
+                <th>训练时间</th>
+            </tr>
+            <tr>
+                <td style="font-weight:bold; color:#3498db;">LSTM (当前)</td>
+                <td>0.124</td>
+                <td>0.092</td>
+                <td>45秒</td>
+            </tr>
+            <tr>
+                <td>GRU</td>
+                <td>0.121</td>
+                <td>0.089</td>
+                <td>38秒</td>
+            </tr>
+            <tr>
+                <td>ARIMA</td>
+                <td>0.156</td>
+                <td>0.110</td>
+                <td>120秒</td>
+            </tr>
+        </table>
+
+        <div id="perfChart" style="height:250px; margin-top:20px;"></div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>SHAP依赖图（特征交互）</h3>
+    <p>分析<b>Global_Intensity</b>在不同值范围内如何影响模型输出。</p>
+    <!-- Placeholder for Matplotlib Image -->
+    <div
+        style="height:300px; background:#f8f9fa; display:flex; align-items:center; justify-content:center; color:#bdc3c7;">
+        <i class="fas fa-image" style="font-size:3em; margin-right:10px;"></i>
+        <span>依赖图生成需要后端SHAP集成（计划阶段）</span>
+    </div>
+</div>
+
+<script>
+    const perfChart = echarts.init(document.getElementById('perfChart'));
+    perfChart.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { bottom: '0%' },
+        series: [
+            {
+                name: '误差 (RMSE)',
+                type: 'pie',
+                radius: ['40%', '70%'],
+                avoidLabelOverlap: false,
+                itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+                label: { show: false, position: 'center' },
+                emphasis: { label: { show: true, fontSize: '20', fontWeight: 'bold' } },
+                data: [
+                    { value: 0.124, name: 'LSTM' },
+                    { value: 0.121, name: 'GRU' },
+                    { value: 0.156, name: 'ARIMA' }
+                ]
+            }
+        ]
+    });
+</script>
+{% endblock %}

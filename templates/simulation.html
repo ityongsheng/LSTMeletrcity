@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}智能模拟 - 家庭能源管理系统{% endblock %}
+{% block page_title %}能源"假设"模拟器{% endblock %}
+
+{% block content %}
+<div class="metrics-row">
+    <div class="card" style="flex:1;">
+        <h3><i class="fas fa-sliders-h"></i> 调整变量</h3>
+        <p style="color:#7f8c8d; font-size:14px;">模拟设备使用模式变化以查看能源影响。</p>
+
+        <div style="margin-top:20px;">
+            <label>温度调整 (°C)</label>
+            <input type="range" id="tempRange" min="-5" max="5" value="0" step="0.5" oninput="updateVal('tempVal', this.value)"
+                style="width:100%;">
+            <div style="text-align:right; font-weight:bold; color:#3498db;" id="tempVal">0°C</div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <label>空调使用时长 (小时/天)</label>
+            <input type="range" id="acRange" min="0" max="12" value="4" step="0.5" oninput="updateVal('acVal', this.value)"
+                style="width:100%;">
+            <div style="text-align:right; font-weight:bold; color:#e67e22;" id="acVal">4小时/天</div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <label>冰箱使用模式</label>
+            <select id="fridgeMode" onchange="updateFridgeMode()" style="width:100%; padding:8px; border-radius:5px;">
+                <option value="normal">正常模式</option>
+                <option value="eco">节能模式</option>
+                <option value="vacation">假期模式</option>
+            </select>
+            <div style="text-align:right; font-size:0.9rem; color:#7f8c8d;" id="fridgeInfo">功率: 200W</div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <label>洗衣机使用次数 (次/周)</label>
+            <input type="range" id="washerRange" min="0" max="10" value="3" oninput="updateVal('washerVal', this.value)"
+                style="width:100%;">
+            <div style="text-align:right; font-weight:bold; color:#9b59b6;" id="washerVal">3次/周</div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <label>电视使用时长 (小时/天)</label>
+            <input type="range" id="tvRange" min="0" max="8" value="2" step="0.5" oninput="updateVal('tvVal', this.value)"
+                style="width:100%;">
+            <div style="text-align:right; font-weight:bold; color:#1abc9c;" id="tvVal">2小时/天</div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <label>照明时长 (小时/天)</label>
+            <input type="range" id="lightRange" min="0" max="12" value="5" step="0.5" oninput="updateVal('lightVal', this.value)"
+                style="width:100%;">
+            <div style="text-align:right; font-weight:bold; color:#f1c40f;" id="lightVal">5小时/天</div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <label>电热水器使用 (小时/天)</label>
+            <input type="range" id="heaterRange" min="0" max="4" value="1" step="0.5" oninput="updateVal('heaterVal', this.value)"
+                style="width:100%;">
+            <div style="text-align:right; font-weight:bold; color:#e74c3c;" id="heaterVal">1小时/天</div>
+        </div>
+
+        <button onclick="runSimulation()" class="btn-primary" style="width:100%; margin-top:30px;">
+            运行模拟
+        </button>
+    </div>
+
+    <div class="card" style="flex:1;">
+        <h3><i class="fas fa-chart-area"></i> 影响分析</h3>
+        <div id="simChart" style="height:250px;"></div>
+        <div id="deviceChart" style="height:250px; margin-top:20px;"></div>
+        <div id="resultText" style="padding:15px; background:#f4f6f9; margin-top:10px; border-radius:5px;">
+            点击"运行模拟"查看预计的节省或成本。
+        </div>
+    </div>
+</div>
+
+<script>
+    // 设备基础信息
+    const deviceInfo = {
+        '空调': { basePower: 1500, baseHours: 4, color: '#e67e22' }, // 1.5kW
+        '冰箱': { basePower: 200, baseHours: 24, color: '#3498db' }, // 200W，24小时运行
+        '洗衣机': { basePower: 800, baseHours: 1, color: '#9b59b6' }, // 800W，每次1小时
+        '电视': { basePower: 150, baseHours: 2, color: '#1abc9c' }, // 150W
+        '照明': { basePower: 100, baseHours: 5, color: '#f1c40f' }, // 100W
+        '电热水器': { basePower: 2000, baseHours: 1, color: '#e74c3c' } // 2kW
+    };
+
+    // 冰箱模式设置
+    const fridgeModes = {
+        'normal': { power: 200, desc: '正常模式' },
+        'eco': { power: 150, desc: '节能模式（功率降低）' },
+        'vacation': { power: 100, desc: '假期模式（低功率运行）' }
+    };
+
+    function updateVal(id, val) {
+        if (id === 'tempVal') {
+            document.getElementById(id).innerText = (val > 0 ? '+' : '') + val + '°C';
+        } else if (id === 'washerVal') {
+            document.getElementById(id).innerText = val + '次/周';
+        } else {
+            document.getElementById(id).innerText = val + '小时/天';
+        }
+    }
+
+    function updateFridgeMode() {
+        const mode = document.getElementById('fridgeMode').value;
+        const info = fridgeModes[mode];
+        document.getElementById('fridgeInfo').innerText = `${info.desc} (功率: ${info.power}W)`;
+    }
+
+    const simChart = echarts.init(document.getElementById('simChart'));
+    const deviceChart = echarts.init(document.getElementById('deviceChart'));
+
+    function runSimulation() {
+        // 获取用户输入
+        const tempAdj = parseFloat(document.getElementById('tempRange').value);
+        const acHours = parseFloat(document.getElementById('acRange').value);
+        const fridgeMode = document.getElementById('fridgeMode').value;
+        const washerCount = parseInt(document.getElementById('washerRange').value);
+        const tvHours = parseFloat(document.getElementById('tvRange').value);
+        const lightHours = parseFloat(document.getElementById('lightRange').value);
+        const heaterHours = parseFloat(document.getElementById('heaterRange').value);
+
+        // 计算设备能耗变化
+        const devices = {
+            '空调': {
+                base: deviceInfo['空调'].basePower * deviceInfo['空调'].baseHours * 7, // 一周基础能耗
+                sim: deviceInfo['空调'].basePower * acHours * 7 * (1 + tempAdj * 0.02) // 考虑温度影响
+            },
+            '冰箱': {
+                base: deviceInfo['冰箱'].basePower * deviceInfo['冰箱'].baseHours * 7,
+                sim: fridgeModes[fridgeMode].power * deviceInfo['冰箱'].baseHours * 7
+            },
+            '洗衣机': {
+                base: deviceInfo['洗衣机'].basePower * deviceInfo['洗衣机'].baseHours * deviceInfo['洗衣机'].baseHours * 7 / 7, // 每周3次
+                sim: deviceInfo['洗衣机'].basePower * deviceInfo['洗衣机'].baseHours * washerCount
+            },
+            '电视': {
+                base: deviceInfo['电视'].basePower * deviceInfo['电视'].baseHours * 7,
+                sim: deviceInfo['电视'].basePower * tvHours * 7
+            },
+            '照明': {
+                base: deviceInfo['照明'].basePower * deviceInfo['照明'].baseHours * 7,
+                sim: deviceInfo['照明'].basePower * lightHours * 7
+            },
+            '电热水器': {
+                base: deviceInfo['电热水器'].basePower * deviceInfo['电热水器'].baseHours * 7,
+                sim: deviceInfo['电热水器'].basePower * heaterHours * 7
+            }
+        };
+
+        // 计算总能耗
+        let totalBase = 0;
+        let totalSim = 0;
+        Object.keys(devices).forEach(device => {
+            totalBase += devices[device].base;
+            totalSim += devices[device].sim;
+        });
+
+        // 转换为kWh
+        totalBase = totalBase / 1000;
+        totalSim = totalSim / 1000;
+
+        // 生成一周每天的基线数据和模拟数据
+        const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        const baseline = [];
+        const simulated = [];
+
+        // 生成每天的数据（考虑周末模式）
+        days.forEach((day, index) => {
+            let dayFactor = 1.0;
+            if (index >= 5) { // 周六、周日
+                dayFactor = 1.2; // 周末用电增加
+            }
+
+            // 基础值 + 随机波动
+            const baseValue = (totalBase / 7) * dayFactor * (0.9 + Math.random() * 0.2);
+            baseline.push(parseFloat(baseValue.toFixed(2)));
+
+            // 模拟值（考虑设备调整）
+            const simValue = (totalSim / 7) * dayFactor * (0.9 + Math.random() * 0.2);
+            simulated.push(parseFloat(simValue.toFixed(2)));
+        });
+
+        // 更新总能耗对比图
+        simChart.setOption({
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['基线能耗', '模拟能耗'] },
+            xAxis: {
+                type: 'category',
+                data: days,
+                axisLabel: {
+                    fontSize: 12
+                }
+            },
+            yAxis: {
+                type: 'value',
+                name: '日能耗 (kWh)',
+                axisLabel: {
+                    formatter: '{value} kWh'
+                }
+            },
+            series: [
+                {
+                    name: '基线能耗',
+                    type: 'line',
+                    data: baseline,
+                    lineStyle: {
+                        type: 'dashed',
+                        width: 2
+                    },
+                    itemStyle: {
+                        color: '#3498db'
+                    },
+                    symbol: 'circle',
+                    symbolSize: 6
+                },
+                {
+                    name: '模拟能耗',
+                    type: 'line',
+                    data: simulated,
+                    areaStyle: {
+                        color: '#2ecc71',
+                        opacity: 0.1
+                    },
+                    lineStyle: {
+                        width: 3
+                    },
+                    itemStyle: {
+                        color: '#2ecc71'
+                    },
+                    symbol: 'circle',
+                    symbolSize: 8
+                }
+            ]
+        });
+
+        // 更新设备能耗对比图
+        const deviceNames = Object.keys(devices);
+        const deviceBaseData = deviceNames.map(device => parseFloat((devices[device].base / 1000).toFixed(2)));
+        const deviceSimData = deviceNames.map(device => parseFloat((devices[device].sim / 1000).toFixed(2)));
+        const deviceColors = deviceNames.map(device => deviceInfo[device].color);
+
+        deviceChart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
+                },
+                formatter: function(params) {
+                    let result = params[0].name + '<br/>';
+                    params.forEach(param => {
+                        const change = param.seriesName === '模拟能耗' ?
+                            (((deviceSimData[param.dataIndex] - deviceBaseData[param.dataIndex]) / deviceBaseData[param.dataIndex]) * 100).toFixed(1) : 0;
+                        result += `${param.seriesName}: ${param.value} kWh`;
+                        if (param.seriesName === '模拟能耗' && Math.abs(change) > 0.1) {
+                            result += ` (${change > 0 ? '+' : ''}${change}%)`;
+                        }
+                        result += '<br/>';
+                    });
+                    return result;
+                }
+            },
+            legend: {
+                data: ['基线能耗', '模拟能耗'],
+                bottom: 0
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '15%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: deviceNames,
+                axisLabel: {
+                    rotate: 30,
+                    fontSize: 11
+                }
+            },
+            yAxis: {
+                type: 'value',
+                name: '周能耗 (kWh)'
+            },
+            series: [
+                {
+                    name: '基线能耗',
+                    type: 'bar',
+                    data: deviceBaseData,
+                    itemStyle: {
+                        color: function(params) {
+                            return deviceColors[params.dataIndex] + '80'; // 80表示50%透明度
+                        }
+                    },
+                    barWidth: '40%'
+                },
+                {
+                    name: '模拟能耗',
+                    type: 'bar',
+                    data: deviceSimData,
+                    itemStyle: {
+                        color: function(params) {
+                            return deviceColors[params.dataIndex];
+                        }
+                    },
+                    barWidth: '40%'
+                }
+            ]
+        });
+
+        // 计算总成本和节省
+        const electricityPrice = 0.6; // 元/kWh
+        const baseCost = totalBase * electricityPrice;
+        const simCost = totalSim * electricityPrice;
+        const diff = simCost - baseCost;
+        const percentChange = ((totalSim - totalBase) / totalBase * 100).toFixed(1);
+
+        const resultDiv = document.getElementById('resultText');
+
+        if (diff > 0) {
+            resultDiv.innerHTML = `
+                <div style="margin-bottom:10px;">
+                    <span style="color:#e74c3c; font-weight:bold;">成本增加：</span>
+                    预计每周将多支付 <b style="font-size:1.2em">${diff.toFixed(2)} 元</b>
+                    <div style="font-size:0.9rem; color:#7f8c8d;">能耗增加: ${percentChange}% (${totalSim.toFixed(1)} kWh vs ${totalBase.toFixed(1)} kWh)</div>
+                </div>
+                <div style="font-size:0.9rem;">
+                    <i class="fas fa-lightbulb" style="color:#f1c40f;"></i> 建议：适当减少空调和电热水器使用时间
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div style="margin-bottom:10px;">
+                    <span style="color:#27ae60; font-weight:bold;">潜在节省：</span>
+                    预计每周可节省 <b style="font-size:1.2em">${Math.abs(diff).toFixed(2)} 元</b>
+                    <div style="font-size:0.9rem; color:#7f8c8d;">能耗减少: ${Math.abs(percentChange)}% (${totalSim.toFixed(1)} kWh vs ${totalBase.toFixed(1)} kWh)</div>
+                </div>
+                <div style="font-size:0.9rem;">
+                    <i class="fas fa-check-circle" style="color:#27ae60;"></i> 您的节能设置有效！
+                </div>
+            `;
+        }
+    }
+
+    // 初始化
+    updateFridgeMode(); // 初始化冰箱模式显示
+    runSimulation(); // 初始化图表
+</script>
+
+<style>
+    input[type="range"] {
+        -webkit-appearance: none;
+        height: 8px;
+        border-radius: 4px;
+        background: #ecf0f1;
+        outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #3498db;
+        cursor: pointer;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #3498db;
+        cursor: pointer;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    select {
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+    }
+
+    select:focus {
+        border-color: #3498db;
+        outline: none;
+    }
+</style>
+{% endblock %}

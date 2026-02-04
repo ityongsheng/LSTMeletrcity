@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}家庭能源管理系统{% endblock %}</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- 自定义 CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+        <div class="brand">
+            <i class="fas fa-bolt" style="color: #3498db; margin-right: 10px;"></i> 家庭能源管理系统
+        </div>
+
+        <ul class="nav-links">
+            <li class="nav-item">
+                <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-tachometer-alt"></i></span> 仪表盘
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('simulation_view') }}"
+                    class="nav-link {% if request.endpoint == 'simulation_view' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-calculator"></i></span> 模拟计算
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('reports_view') }}"
+                    class="nav-link {% if request.endpoint == 'reports_view' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-file-pdf"></i></span> 报告中心
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('devices_view') }}"
+                    class="nav-link {% if request.endpoint == 'devices_view' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-server"></i></span> 设备管理
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('xai_view') }}"
+                    class="nav-link {% if request.endpoint == 'xai_view' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-brain"></i></span> AI分析
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('logs_view') }}"
+                    class="nav-link {% if request.endpoint == 'logs_view' %}active{% endif %}">
+                    <span class="nav-icon"><i class="fas fa-shield-alt"></i></span> 安全日志
+                </a>
+            </li>
+        </ul>
+
+        <div class="user-panel">
+            <div class="user-info">
+                <i class="fas fa-user-circle"></i> {{ current_user.username }}
+            </div>
+            <div style="margin-top: 10px;">
+                <a href="{{ url_for('logout') }}" style="color: #e74c3c; text-decoration: none; font-size: 0.85rem;">
+                    <i class="fas fa-sign-out-alt"></i> 退出登录
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-wrapper">
+        <div class="top-header">
+            <div class="page-title">{% block page_title %}仪表盘{% endblock %}</div>
+            <div class="header-tools">
+                <!-- 可在此处添加通知或时间显示 -->
+                <span id="clock" style="color: #7f8c8d; font-size: 0.9rem;"></span>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <!-- 闪存消息 -->
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            <div class="alert-box alert-warning">
+                {{ messages[0] }}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script>
+        // 更新时间显示
+        setInterval(() => {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-CN', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('clock').innerText = timeStr;
+        }, 1000);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

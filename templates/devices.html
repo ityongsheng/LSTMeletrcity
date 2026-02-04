@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}设备管理 - 家庭能源管理系统{% endblock %}
+{% block page_title %}设备管理{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3>已注册设备</h3>
+        <button onclick="document.getElementById('addModal').style.display='block'" class="btn-primary">
+            <i class="fas fa-plus"></i> 添加设备
+        </button>
+    </div>
+
+    <table style="width:100%; border-collapse: collapse; margin-top:10px;">
+        <tr style="background:#ecf0f1; color:#2c3e50; text-align:left;">
+            <th style="padding:12px;">设备ID</th>
+            <th style="padding:12px;">设备名称</th>
+            <th style="padding:12px;">功率 (W)</th>
+            <th style="padding:12px;">优先级</th>
+            <th style="padding:12px;">状态</th>
+            <th style="padding:12px;">操作</th>
+        </tr>
+        {% for dev in devices %}
+        <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding:12px;">{{ dev.id }}</td>
+            <td style="padding:12px; font-weight:bold;">{{ dev.name }}</td>
+            <td style="padding:12px;">{{ dev.power_rating }} W</td>
+            <td style="padding:12px;">
+                {% if dev.priority == 1 %} <span style="color:red">高</span>
+                {% else %} 低 {% endif %}
+            </td>
+            <td style="padding:12px;">
+                <span
+                    style="padding:4px 8px; border-radius:4px; font-size:12px; background: #2ecc71; color:white;">在线</span>
+            </td>
+            <td style="padding:12px;">
+                <a href="{{ url_for('delete_device', id=dev.id) }}" style="color:#e74c3c;">
+                    <i class="fas fa-trash"></i>
+                </a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6" style="padding:20px; text-align:center; color:#7f8c8d;">暂无注册设备。</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+<!-- 模态框 -->
+<div id="addModal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+    <div style="background:white; width:400px; margin:10% auto; padding:20px; border-radius:8px;">
+        <h3>添加新设备</h3>
+        <form action="{{ url_for('add_device') }}" method="POST">
+            <div style="margin-bottom:15px;">
+                <label>设备名称</label>
+                <input type="text" name="name" required style="width:100%; padding:8px; margin-top:5px;">
+            </div>
+            <div style="margin-bottom:15px;">
+                <label>额定功率 (W)</label>
+                <input type="number" name="power" required style="width:100%; padding:8px; margin-top:5px;">
+            </div>
+            <div style="text-align:right;">
+                <button type="button" onclick="document.getElementById('addModal').style.display='none'"
+                    style="background:#95a5a6; border:none; color:white; padding:8px 15px; border-radius:4px; cursor:pointer;">取消</button>
+                <button type="submit" class="btn-primary">保存设备</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

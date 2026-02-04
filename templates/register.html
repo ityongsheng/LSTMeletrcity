@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>注册 - 家庭能源管理系统</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #81ecec, #74b9ff);
+        }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .card h2 {
+            margin-top: 0;
+            color: #2d3436;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #636e72;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dfe6e9;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        input:focus {
+            border-color: #00b894;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            background-color: #00cec9;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #00b894;
+        }
+
+        .links {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .links a {
+            color: #00b894;
+            text-decoration: none;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        .flash {
+            padding: 10px;
+            background: #fab1a0;
+            color: #d63031;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h2>创建账户</h2>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div style="display:block" class="flash">{{ messages[0] }}</div>
+        {% endif %}
+        {% endwith %}
+        <form method="POST" action="/register">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" name="username" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label>确认密码</label>
+                <input type="password" name="confirm_password" required>
+            </div>
+            <button type="submit">注册</button>
+        </form>
+        <div class="links">
+            已有账户？ <a href="/login">点击登录</a>
+        </div>
+    </div>
+</body>
+
+</html>
