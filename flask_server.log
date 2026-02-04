@@ -1,0 +1,32 @@
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/keras/src/export/tf2onnx_lib.py:8: FutureWarning: In the future `np.object` will be defined as the corresponding NumPy scalar.
+  if not hasattr(np, "object"):
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:56: FutureWarning: 'T' is deprecated and will be removed in a future version, please use 'min' instead.
+  self.df = self.df.resample(resample_freq).mean()
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:60: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  self.df.fillna(method='ffill', inplace=True)
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:61: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  self.df.fillna(method='bfill', inplace=True) # Catch remaining
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:94: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+  roller = self.df[self.target_col].rolling(window=window, min_periods=1)
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:94: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+  roller = self.df[self.target_col].rolling(window=window, min_periods=1)
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/shap/explainers/_deep/deep_tf.py:94: UserWarning: Your TensorFlow version is newer than 2.4.0 and so graph support has been removed in eager mode and some static graphs may not be supported. See PR #1483 for discussion.
+  warnings.warn(
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/keras/src/models/functional.py:241: UserWarning: The structure of `inputs` doesn't match the expected structure.
+Expected: keras_tensor
+Received: inputs=['Tensor(shape=(50, 24, 16))']
+  warnings.warn(msg)
+Initializing SHEMS Service Layer...
+Loading data from uk_dale_tf_demo.csv...
+Data loaded and cleaned. Shape changed from (5000, 3) to (5000, 3)
+Starting feature engineering...
+Feature engineering complete. Total features: 15
+Scaling data...
+WARN: No model weights found. Using random init.
+Sequences created. X shape: (4952, 24, 16), y shape: (4952,)
+SHEMS Service Layer Ready.
+ * Serving Flask app 'app'
+ * Debug mode: on
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+On macOS, try searching for and disabling 'AirPlay Receiver' in System Settings.

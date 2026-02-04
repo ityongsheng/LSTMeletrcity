@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Report Center - SHEMS{% endblock %}
+{% block page_title %}Energy Reports{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:600px; margin:0 auto;">
+    <div style="text-align:center; padding:30px;">
+        <i class="fas fa-file-invoice-dollar" style="font-size:4em; color:#3498db; margin-bottom:20px;"></i>
+        <h2>Monthly Energy Diagnostic</h2>
+        <p style="color:#7f8c8d;">Generate a comprehensive PDF report including your usage trends, cost analysis, and
+            AI-driven saving tips.</p>
+
+        <div style="margin:30px 0; text-align:left; background:#f4f6f9; padding:20px; border-radius:8px;">
+            <label>Select Month</label>
+            <select style="width:100%; padding:10px; margin-top:5px; border-radius:5px; border:1px solid #ddd;">
+                <option>December 2025</option>
+                <option>November 2025</option>
+                <option>October 2025</option>
+            </select>
+
+            <br><br>
+            <label><input type="checkbox" checked> Include Anomaly Details</label> <br>
+            <label><input type="checkbox" checked> Include Billing Estimate</label>
+        </div>
+
+        <button class="btn-primary"
+            onclick="alert('PDF Generation would happen here (Requires ReportLab backend integration).')"
+            style="width:100%; font-size:1.1em;">
+            <i class="fas fa-download"></i> Download Report (PDF)
+        </button>
+    </div>
+</div>
+{% endblock %}

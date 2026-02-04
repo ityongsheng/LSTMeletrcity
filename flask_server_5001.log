@@ -1,0 +1,164 @@
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/keras/src/export/tf2onnx_lib.py:8: FutureWarning: In the future `np.object` will be defined as the corresponding NumPy scalar.
+  if not hasattr(np, "object"):
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:56: FutureWarning: 'T' is deprecated and will be removed in a future version, please use 'min' instead.
+  self.df = self.df.resample(resample_freq).mean()
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:60: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  self.df.fillna(method='ffill', inplace=True)
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:61: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  self.df.fillna(method='bfill', inplace=True) # Catch remaining
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:94: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+  roller = self.df[self.target_col].rolling(window=window, min_periods=1)
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:94: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+  roller = self.df[self.target_col].rolling(window=window, min_periods=1)
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/shap/explainers/_deep/deep_tf.py:94: UserWarning: Your TensorFlow version is newer than 2.4.0 and so graph support has been removed in eager mode and some static graphs may not be supported. See PR #1483 for discussion.
+  warnings.warn(
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/keras/src/models/functional.py:241: UserWarning: The structure of `inputs` doesn't match the expected structure.
+Expected: keras_tensor
+Received: inputs=['Tensor(shape=(50, 24, 16))']
+  warnings.warn(msg)
+Initializing SHEMS Service Layer...
+Loading data from uk_dale_tf_demo.csv...
+Data loaded and cleaned. Shape changed from (5000, 3) to (5000, 3)
+Starting feature engineering...
+Feature engineering complete. Total features: 15
+Scaling data...
+WARN: No model weights found. Using random init.
+Sequences created. X shape: (4952, 24, 16), y shape: (4952,)
+SHEMS Service Layer Ready.
+ * Serving Flask app 'app'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://198.18.0.1:5001
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/keras/src/export/tf2onnx_lib.py:8: FutureWarning: In the future `np.object` will be defined as the corresponding NumPy scalar.
+  if not hasattr(np, "object"):
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:56: FutureWarning: 'T' is deprecated and will be removed in a future version, please use 'min' instead.
+  self.df = self.df.resample(resample_freq).mean()
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:60: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  self.df.fillna(method='ffill', inplace=True)
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:61: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  self.df.fillna(method='bfill', inplace=True) # Catch remaining
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:94: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+  roller = self.df[self.target_col].rolling(window=window, min_periods=1)
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:94: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+  roller = self.df[self.target_col].rolling(window=window, min_periods=1)
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/shap/explainers/_deep/deep_tf.py:94: UserWarning: Your TensorFlow version is newer than 2.4.0 and so graph support has been removed in eager mode and some static graphs may not be supported. See PR #1483 for discussion.
+  warnings.warn(
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/keras/src/models/functional.py:241: UserWarning: The structure of `inputs` doesn't match the expected structure.
+Expected: keras_tensor
+Received: inputs=['Tensor(shape=(50, 24, 16))']
+  warnings.warn(msg)
+ * Debugger is active!
+ * Debugger PIN: 472-366-065
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/keras/src/models/functional.py:241: UserWarning: The structure of `inputs` doesn't match the expected structure.
+Expected: keras_tensor
+Received: inputs=['Tensor(shape=(100, 24, 16))']
+  warnings.warn(msg)
+127.0.0.1 - - [29/Dec/2025 11:01:31] "[35m[1mPOST /api/simulation/step HTTP/1.1[0m" 500 -
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/app.py", line 1536, in __call__
+    return self.wsgi_app(environ, start_response)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/app.py", line 1514, in wsgi_app
+    response = self.handle_exception(e)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/liyongsheng/PycharmProjects/girls/LSTMele/app.py", line 28, in simulation_step
+    explanation = service.explain(X_latest)
+  File "/Users/liyongsheng/PycharmProjects/girls/LSTMele/service_layer.py", line 111, in explain
+    shap_values = self.explainer.compute_shap_values(input_seq)
+  File "/Users/liyongsheng/PycharmProjects/girls/LSTMele/explainer_tf.py", line 49, in compute_shap_values
+    shap_values = self.explainer.shap_values(X_sample)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/shap/explainers/_deep/__init__.py", line 164, in shap_values
+    return self.explainer.shap_values(X, ranked_outputs, output_rank_order, check_additivity=check_additivity)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/shap/explainers/_deep/deep_tf.py", line 332, in shap_values
+    sample_phis = self.run(self.phi_symbolic(feature_ind), self.model_inputs, joint_input)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/shap/explainers/_deep/deep_tf.py", line 389, in run
+    return self.execute_with_overridden_gradients(anon)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/shap/explainers/_deep/deep_tf.py", line 421, in execute_with_overridden_gradients
+    out = f()
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/shap/explainers/_deep/deep_tf.py", line 381, in anon
+    final_out = out(inputs)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/tensorflow/python/util/traceback_utils.py", line 153, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/tensorflow/python/eager/polymorphic_function/autograph_util.py", line 52, in autograph_handler
+    raise e.ag_error_metadata.to_exception(e)
+tensorflow.python.autograph.impl.api.StagingError: in user code:
+
+    File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/shap/explainers/_deep/deep_tf.py", line 265, in grad_graph  *
+        x_grad = tape.gradient(out, shap_rAnD)
+
+    LookupError: gradient registry has no entry for: shap_TensorListStack
+
+ * Detected change in '/Users/liyongsheng/PycharmProjects/girls/LSTMele/explainer_tf.py', reloading
+Initializing SHEMS Service Layer...
+Loading data from uk_dale_tf_demo.csv...
+Data loaded and cleaned. Shape changed from (5000, 3) to (5000, 3)
+Starting feature engineering...
+Feature engineering complete. Total features: 15
+Scaling data...
+WARN: No model weights found. Using random init.
+Sequences created. X shape: (4952, 24, 16), y shape: (4952,)
+SHEMS Service Layer Ready.
+Sequences created. X shape: (4952, 24, 16), y shape: (4952,)
+ * Restarting with stat
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/keras/src/export/tf2onnx_lib.py:8: FutureWarning: In the future `np.object` will be defined as the corresponding NumPy scalar.
+  if not hasattr(np, "object"):
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:56: FutureWarning: 'T' is deprecated and will be removed in a future version, please use 'min' instead.
+  self.df = self.df.resample(resample_freq).mean()
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:60: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  self.df.fillna(method='ffill', inplace=True)
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:61: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  self.df.fillna(method='bfill', inplace=True) # Catch remaining
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:94: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+  roller = self.df[self.target_col].rolling(window=window, min_periods=1)
+/Users/liyongsheng/PycharmProjects/girls/LSTMele/power_processor.py:94: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+  roller = self.df[self.target_col].rolling(window=window, min_periods=1)
+ * Debugger is active!
+ * Debugger PIN: 472-366-065
+Initializing SHEMS Service Layer...
+Loading data from uk_dale_tf_demo.csv...
+Data loaded and cleaned. Shape changed from (5000, 3) to (5000, 3)
+Starting feature engineering...
+Feature engineering complete. Total features: 15
+Scaling data...
+WARN: No model weights found. Using random init.
+Sequences created. X shape: (4952, 24, 16), y shape: (4952,)
+DeepExplainer failed. Using PermutationExplainer with flattened inputs.
+SHEMS Service Layer Ready.
+Traceback (most recent call last):
+  File "/Users/liyongsheng/PycharmProjects/girls/LSTMele/app.py", line 39, in <module>
+    app.run(host='0.0.0.0', port=5002, debug=True)
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/flask/app.py", line 662, in run
+    run_simple(t.cast(str, host), port, self, **options)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/werkzeug/serving.py", line 1115, in run_simple
+    run_with_reloader(
+    ~~~~~~~~~~~~~~~~~^
+        srv.serve_forever,
+        ^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        reloader_type=reloader_type,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/werkzeug/_reloader.py", line 453, in run_with_reloader
+    ensure_echo_on()
+    ~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/werkzeug/_reloader.py", line 433, in ensure_echo_on
+    termios.tcsetattr(sys.stdin, termios.TCSANOW, attributes)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+termios.error: (4, 'Interrupted system call')

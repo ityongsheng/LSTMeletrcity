@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - SHEMS{% endblock %}
+{% block page_title %}Real-time Energy Monitor{% endblock %}
+
+{% block content %}
+
+<!-- Alert Section -->
+<div id="alert-area" class="alert-box alert-danger" style="display: none;"></div>
+
+<!-- Main Metrics -->
+<div class="metrics-row">
+    <div class="metric-card">
+        <div class="metric-label">Current Power (Scaled)</div>
+        <div id="val-power" class="metric-value">--</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Predicted Next Step</div>
+        <div id="val-pred" class="metric-value" style="color: #3498db;">--</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Uncertainty (Std Dev)</div>
+        <div id="val-std" class="metric-value" style="color: #f39c12;">--</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Simulate</div>
+        <button onclick="fetchStep()" class="btn-primary" style="width: 100%; margin-top: 5px;">
+            Step Forward &raquo;
+        </button>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="card">
+    <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #eee; padding-bottom:10px;">
+        <i class="fas fa-chart-line"></i> Forecast & Anomaly Detection
+    </h3>
+    <div id="mainChart" style="height: 400px;"></div>
+</div>
+
+<div class="card">
+    <h3 style="margin-top:0; color:#2c3e50; border-bottom:1px solid #eee; padding-bottom:10px;">
+        <i class="fas fa-search-plus"></i> Real-time XAI Attribution (SHAP)
+    </h3>
+    <div id="shapChart" style="height: 350px;"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize Charts
+    const mainChart = echarts.init(document.getElementById('mainChart'));
+    const shapChart = echarts.init(document.getElementById('shapChart'));
+
+    // Data buffers
+    const timeLabels = [];
+    const actualData = [];
+    const predData = [];
+    const ciLow = [];
+    const ciHigh = [];
+    let stepCount = 0;
+
+    // Responsive Resize
+    window.addEventListener('resize', function () {
+        mainChart.resize();
+        shapChart.resize();
+    });
+
+    function updateMainChart() {
+        mainChart.setOption({
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['Actual', 'Forecast', '95% CI'] },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'category', data: timeLabels, boundaryGap: false },
+            yAxis: { type: 'value', name: 'Power (Scaled)' },
+            series: [
+                {
+                    name: '95% CI',
+                    type: 'line',
+                    data: ciHigh,
+                    lineStyle: { opacity: 0 },
+                    areaStyle: { color: '#3498db', opacity: 0.2 },
+                    stack: 'confidence-band',
+                    symbol: 'none'
+                },
+                {
+                    name: 'CI_Lower',
+                    type: 'line',
+                    data: ciLow,
+                    lineStyle: { opacity: 0 },
+                    areaStyle: { color: '#fff', opacity: 1 },
+                    stack: 'confidence-band',
+                    symbol: 'none'
+                },
+                {
+                    name: 'Forecast',
+                    type: 'line',
+                    data: predData,
+                    lineStyle: { color: '#3498db', width: 3 },
+                    symbol: 'none'
+                },
+                {
+                    name: 'Actual',
+                    type: 'line',
+                    data: actualData,
+                    lineStyle: { color: '#2c3e50', width: 2, type: 'dashed' },
+                    itemStyle: { color: '#2c3e50' }
+                }
+            ]
+        });
+    }
+
+    function updateShapChart(features, shapValues) {
+        shapChart.setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'value', name: 'Impact on Prediction' },
+            yAxis: { type: 'category', data: features },
+            series: [
+                {
+                    name: 'Impact',
+                    type: 'bar',
+                    data: shapValues,
+                    label: { show: true, position: 'right' },
+                    itemStyle: {
+                        color: function (params) {
+                            return params.value > 0 ? '#ff7675' : '#74b9ff';
+                        }
+                    }
+                }
+            ]
+        });
+    }
+
+    async function fetchStep() {
+        try {
+            const response = await fetch('/api/simulation/step', { method: 'POST' });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Server Error');
+            }
+            const data = await response.json();
+
+            stepCount++;
+            const nowLabel = 't+' + stepCount;
+
+            // Update Metrics
+            document.getElementById('val-power').innerText = data.actual_power.toFixed(3);
+            document.getElementById('val-pred').innerText = data.prediction.forecast.toFixed(3);
+            document.getElementById('val-std').innerText = data.prediction.std.toFixed(3);
+
+            // Alert logic
+            const alertBox = document.getElementById('alert-area');
+            if (data.alert.is_anomaly) {
+                alertBox.style.display = 'block';
+                alertBox.innerText = "WARNING: " + data.alert.alerts.join(' | ');
+            } else {
+                alertBox.style.display = 'none';
+            }
+
+            // Update Arrays
+            timeLabels.push(nowLabel);
+            actualData.push(data.actual_power);
+            predData.push(data.prediction.forecast);
+            ciLow.push(data.prediction.ci_low);
+            ciHigh.push(data.prediction.ci_high);
+
+            if (timeLabels.length > 50) {
+                timeLabels.shift(); actualData.shift(); predData.shift(); ciLow.shift(); ciHigh.shift();
+            }
+
+            updateMainChart();
+
+            // SHAP
+            if (data.explanation && data.explanation.feature_names) {
+                updateShapChart(data.explanation.feature_names, data.explanation.shap_values);
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Simulation Step Failed: ' + error.message);
+        }
+    }
+</script>
+{% endblock %}

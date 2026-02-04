@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Simulation - SHEMS{% endblock %}
+{% block page_title %}Energy "What-If" Simulator{% endblock %}
+
+{% block content %}
+<div class="metrics-row">
+    <div class="card" style="flex:1;">
+        <h3><i class="fas fa-sliders-h"></i> Adjust Variables</h3>
+        <p style="color:#7f8c8d; font-size:14px;">Simulate changes in usage patterns or weather to see impact.</p>
+
+        <div style="margin-top:20px;">
+            <label>Temperature Adjustment (°C)</label>
+            <input type="range" id="tempRange" min="-5" max="5" value="0" oninput="updateVal('tempVal', this.value)"
+                style="width:100%;">
+            <div style="text-align:right; font-weight:bold; color:#3498db;" id="tempVal">0°C</div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <label>AC Usage Duration (Hrs)</label>
+            <input type="range" id="acRange" min="0" max="10" value="4" oninput="updateVal('acVal', this.value)"
+                style="width:100%;">
+            <div style="text-align:right; font-weight:bold; color:#e67e22;" id="acVal">4h</div>
+        </div>
+
+        <button onclick="runSimulation()" class="btn-primary" style="width:100%; margin-top:30px;">
+            Run Simulation
+        </button>
+    </div>
+
+    <div class="card" style="flex:1;">
+        <h3><i class="fas fa-chart-area"></i> Impact Analysis</h3>
+        <div id="simChart" style="height:300px;"></div>
+        <div id="resultText" style="padding:15px; background:#f4f6f9; margin-top:10px; border-radius:5px;">
+            Click "Run Simulation" to see projected savings or costs.
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateVal(id, val) {
+        document.getElementById(id).innerText = (val > 0 ? '+' : '') + val + (id === 'tempVal' ? '°C' : 'h');
+    }
+
+    const simChart = echarts.init(document.getElementById('simChart'));
+
+    function runSimulation() {
+        // Mock simulation logic for Frontend Demo
+        // In real backend, we'd send these params to LSTM
+        const tempAdj = parseInt(document.getElementById('tempRange').value);
+        const acHrs = parseInt(document.getElementById('acRange').value);
+
+        // Generate mock data comparing Baseline vs Simulated
+        const baseline = [0.5, 0.6, 0.8, 0.9, 0.8, 0.6, 0.5];
+        const simulated = baseline.map(x => x + (tempAdj * 0.05) + ((acHrs - 4) * 0.02));
+
+        simChart.setOption({
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['Baseline', 'Simulated'] },
+            xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+            yAxis: { type: 'value', name: 'Avg Power (kW)' },
+            series: [
+                { name: 'Baseline', type: 'line', data: baseline, lineStyle: { type: 'dashed' } },
+                { name: 'Simulated', type: 'line', data: simulated, areaStyle: { opacity: 0.1 } }
+            ]
+        });
+
+        const diff = simulated.reduce((a, b) => a + b, 0) - baseline.reduce((a, b) => a + b, 0);
+        const cost = (diff * 24 * 0.5); // Mock cost calculation (0.5 RMB/kWh)
+
+        const resultDiv = document.getElementById('resultText');
+        if (cost > 0) {
+            resultDiv.innerHTML = `<span style="color:#e74c3c; font-weight:bold;">Cost Increase:</span> Expected to pay <b style="font-size:1.2em">${cost.toFixed(2)} RMB</b> more next week.`;
+        } else {
+            resultDiv.innerHTML = `<span style="color:#27ae60; font-weight:bold;">Potential Savings:</span> You could save <b style="font-size:1.2em">${Math.abs(cost).toFixed(2)} RMB</b> next week!`;
+        }
+    }
+
+    // Init empty chart
+    runSimulation();
+</script>
+{% endblock %}
